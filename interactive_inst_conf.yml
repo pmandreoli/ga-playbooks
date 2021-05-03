@@ -1,0 +1,80 @@
+---
+
+- hosts: galaxy2
+  become: true
+  vars:
+    docker_users:
+      - galaxy
+      - centos
+    docker_install_compose: false
+    galaxy_install_dir: /srv/galaxy 
+    galaxy_server_dir: '{{ galaxy_install_dir }}/server' 
+  roles:
+    - geerlingguy.docker
+
+  post_tasks:
+
+    - name: activate virtual env, install and repair npm
+      become: true
+      become_user: root
+      shell: 
+        chdir: '{{ galaxy_install_dir }}'
+        cmd: . venv/bin/activate; cd '{{ galaxy_server_dir }}/lib/galaxy/web/proxy/js'; npm install; npm audit fix
+
+    - name: copy ini.sample to ini
+      become: true 
+      become_user: root
+      copy:
+        src: '{{ galaxy_server_dir }}/config/plugins/interactive_environments/{{ item }}/config/{{ item }}.ini.sample'
+        dest: '{{ galaxy_server_dir }}/config/plugins/interactive_environments/{{ item }}/config/{{ item }}.ini'
+        remote_src: true
+      with_items:
+        - jupyter
+        - rstudio
+
+    - name: .ini.sample to .ini
+      become: true 
+      become_user: root
+      copy:
+        src: '{{ galaxy_server_dir }}/config/plugins/interactive_environments/{{ item }}/config/allowed_images.yml.sample'
+        dest: '{{ galaxy_server_dir }}/config/plugins/interactive_environments/{{ item }}/config/allowed_images.yml'
+        remote_src: true
+      with_items:
+        - jupyter
+        - rstudio
+
+    - name: interactive configuration
+      lineinfile:
+        path: '{{ galaxy_server_dir }}/config/plugins/interactive_environments/{{ item.name }}/config/{{ item.name }}.ini'
+        regexp: '{{ item.regexp }}'
+        line: '{{ item.line }}'
+      with_items:
+        - { name: jupyter , regexp: "#use_volumes = True" , line: "use_volumes = False" }
+        - { name: rstudio , regexp: "#use_volumes = True" , line: "use_volumes = False" }
+        - { name: jupyter , regexp: "#wx_tempdir = False" , line: "wx_tempdir = True"  }
+        - { name: rstudio , regexp: "#wx_tempdir = False" , line: "wx_tempdir = True"  }
+
+    - name: new allowed image file jupyter
+      get_url:
+        url: https://gist.githubusercontent.com/pmandreoli/dace24aedadb8f5a333ad1fc0740a4af/raw/bfe677273cd61f536dbe3ac8ef5b47207a3ef806/allowed_images.yml
+        dest: '{{ galaxy_server_dir }}/config/plugins/interactive_environments/jupyter/config/allowed_images.yml'
+   
+    - name: install docker.py
+      pip:
+        name: docker-py
+        state: present
+
+    - name: pull selected docker images
+      docker_image:
+        name: '{{ item }}' 
+        source: pull
+      with_items:
+        - pmandreoli/jup-lab-test:v1
+        - quay.io/erasche/docker-rstudio-notebook:19.05
+
+
+    - name: restart galaxy
+      service:
+        name: galaxy
+        state: restarted
+
