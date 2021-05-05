@@ -1,0 +1,8 @@
+---
+
+- name: install docker with image dir on volume 
+  hosts: localhost
+  become: yes
+  roles:
+    - { role: indigo-dc.docker, docker_config:  { "data-root": "/export/docker_image", }}
+
