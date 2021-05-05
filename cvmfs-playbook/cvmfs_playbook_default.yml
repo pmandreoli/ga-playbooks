@@ -1,0 +1,12 @@
+--- 
+- name: CVMFS
+  hosts: localhost
+  become: true
+  vars:
+    cvmfs_role: client
+    galaxy_cvmfs_repos_enabled: config-repo
+  roles:
+    - geerlingguy.repo-epel
+    - galaxyproject.cvmfs
+
+
