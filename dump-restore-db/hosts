@@ -1,0 +1,5 @@
+[donor]
+<ip>  ansible_connection=ssh ansible_user=centos
+
+[receiver] 
+<ip> ansible_connection=ssh ansible_user=centos

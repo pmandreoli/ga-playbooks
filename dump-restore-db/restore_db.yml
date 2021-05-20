@@ -1,0 +1,57 @@
+---
+
+- hosts: receiver
+  vars: 
+    flavor: galaxy-testing
+  tasks:
+
+   - name: '[Copy] copy galaxy tools dump .sql file to receiver'
+     copy:
+       dest: /tmp/galaxy_tools.sql
+       src: '/tmp/dump/{{ flavor }}/{{ flavor }}.sql'
+
+   - name: '[Copy] copy galaxy shed_tools tar file to receiver'
+     become: yes
+     copy:
+       dest: /home/galaxy/galaxy/var/shed_tools.tar.gz
+       src: '/tmp/dump/{{ flavor }}/{{ flavor }}_shed_tools.tar.gz'
+       
+   - name: '[Copy] copy galaxy _conda tar file to receiver'
+     become: yes
+     copy:
+       dest: /export/tool_deps/
+       src: '/tmp/dump/{{ flavor }}/{{ flavor }}_conda.tar.gz'
+
+   - name: '[Unarchive] unarchive shed_tools gz in the receiver'
+     become: yes
+     unarchive:
+       dest: /home/galaxy/galaxy/var/shed_tools
+       src: /home/galaxy/galaxy/var/shed_tools.tar.gz
+       remote_src: true
+
+   - name: '[Unarchive] unarchive conda gz in the receiver'
+     become: yes
+     unarchive:
+       dest: /export/tool_deps/
+       src: '/export/tool_deps/{{ flavor }}_conda.tar.gz'
+       remote_src: true
+
+   - name: '[Copy] copy galaxy shed_tools_conf file to receiver'
+     become: yes
+     copy:
+       src: '/tmp/dump/{{ flavor }}/shed_tool_conf.xml'
+       dest: /home/galaxy/galaxy/config/shed_tool_conf.xml
+
+   - name: '[Restore] restore galaxy_tools db using donor file' 
+     become: true
+     become_user: postgres
+     postgresql_db: 
+       name: galaxy_tools
+       state: restore
+       target: /tmp/galaxy_tools.sql
+
+   - name: '[Restart] restart galaxy systemd service' 
+     become: true
+     service:
+       name: galaxy
+       state: restarted

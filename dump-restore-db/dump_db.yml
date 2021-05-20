@@ -1,0 +1,57 @@
+---
+
+- hosts: donor
+  vars: 
+    flavor: galaxy-CoVaCS
+  tasks:
+
+   - name: '[Dump] dump tools db on .sql file'
+     become: true
+     become_user: postgres
+     postgresql_db: 
+       name: galaxy_tools
+       state: dump
+       target: '/tmp/{{ flavor }}.sql'
+        
+
+   - name: '[Archive] zip shed_tools dir'
+     become: yes
+     archive:
+       path: /home/galaxy/galaxy/var/shed_tools/
+       dest: '/home/galaxy/galaxy/var/{{ flavor }}_shed_tools.tar.gz'
+       format: gz
+
+   - name: '[Tar] Use tar cmd to compress conda dir'
+     become: yes
+     shell:
+       cmd: tar cvzf  '/home/galaxy/galaxy/var/{{ flavor }}_conda.tar.gz' _conda/
+       chdir: /export/tool_deps/
+
+   - name: '[Fetch] fetch the db file from remote to local'
+     fetch:
+       src: '/tmp/{{ flavor }}.sql'
+       dest: '/tmp/dump/{{ flavor }}/'
+       flat: yes
+
+   - name: '[Fetch] fetch shed_tools archive from remote to local]'
+     become: yes
+     fetch:
+       src: '/home/galaxy/galaxy/var/{{ flavor }}_shed_tools.tar.gz'
+       dest: '/tmp/dump/{{ flavor }}/'
+       flat: yes
+
+#used module sync because the file in some flavor is too heavy to be handle by fetch module
+
+   - name: '[Sync] sync conda tar  remote to local' 
+     become: yes
+     synchronize:
+       mode: pull
+       src: '/home/galaxy/galaxy/var/{{ flavor }}_conda.tar.gz'
+       dest: '/tmp/dump/{{ flavor }}/'
+
+   - name: '[Fetch] fetch shed_tools conf file from remote to local]'
+     become: yes
+     fetch:
+       src: /home/galaxy/galaxy/config/shed_tool_conf.xml
+       dest: '/tmp/dump/{{ flavor }}/'
+       flat: yes
