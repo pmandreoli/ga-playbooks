@@ -1,0 +1,25 @@
+
+---
+
+- hosts: galaxy
+  become: yes
+  gather_facts: false
+  pre_tasks:
+
+    - name: install py3 and epel 
+      package:
+        name: 
+          - python3
+          - epel-release
+        state: present
+
+    - name: install py2-pip
+      package:
+        name: python-pip
+        state: present
+
+    - name: Gathering Facts
+      setup:
+  roles:
+    - role: ansible-role-laniakea-galaxy
+

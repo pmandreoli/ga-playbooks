@@ -1,0 +1,3 @@
+
+[galaxy]
+<ip> ansible_connection=ssh ansible_user=centos
